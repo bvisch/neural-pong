@@ -1,0 +1,37 @@
+<% if @network.present? %>
+<% layers = [:hidden, :output] %>
+<% max_layer_size = 100 %>
+<% array_size = layers.size * max_layer_size %>
+
+window.Pong.network = new Float64Array(<%= array_size %>);
+window.Pong.predict = function(inputs) {
+
+  // ball.position.x, ball.position.y, ball.direction.x, ball.direction.y, paddle.position.y
+  var n = window.Pong.network;
+  var length = inputs.length;
+  for(var i = 0; i < length; ++i)
+    n[i] = inputs[i];
+
+<% output_size = @network["#{layers.last}_bias".to_sym].size %>
+  var output = new Float64Array(<%= output_size %>);
+<% layers.each_with_index do |layer,layer_idx| %>
+  <% @network["#{layer}_weights".to_sym].each_with_index do |weights,neuron_idx| %>
+    <% neuron = "n[#{layer_idx + 1}#{neuron_idx}]" %>
+    <% weights.each_with_index do |weight,input_idx| %>
+      <%= neuron %> <%= input_idx == 0 ? '=' : '+=' %> n[<%= "#{layer_idx if layer_idx > 0}#{input_idx}" %>] * <%= weight %>;
+    <% end %>
+
+    <%= neuron %> += <%= @network["#{layer}_bias".to_sym][neuron_idx] %>;
+    <% if layer != :output %>
+      <%= neuron %> = window.Pong.sigmoid(<%= neuron %>);
+    <% else %>
+      output[<%= neuron_idx %>] = <%= neuron %>;
+    <% end %>
+  <% end %>
+<% end %>
+
+  output = window.Pong.softmax(output);
+  console.log(output);
+  return window.Pong.argmax(output);
+}
+<% end %>
